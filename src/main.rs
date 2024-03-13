@@ -1,8 +1,8 @@
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use axum::{
     extract::{Path, State},
     routing::get,
-    Router,
+    Json, Router,
 };
 use shuttle_secrets::SecretStore;
 
@@ -31,17 +31,17 @@ struct AirtableResponse {
 
 #[derive(serde::Deserialize)]
 struct AirtableRecord {
-    id: String,
-    #[serde(rename = "createdTime")]
-    created_time: String,
+    // id: String,
+    // #[serde(rename = "createdTime")]
+    // created_time: String,
     fields: AirtableFields,
 }
 
 #[derive(serde::Deserialize)]
 struct AirtableFields {
-    approval_date: String,
-    verification_type: String,
-    near_wallet: String,
+    // approval_date: String,
+    // verification_type: String,
+    // near_wallet: String,
     status: KycStatus,
 }
 
@@ -59,10 +59,27 @@ enum KycStatus {
     Approved,
 }
 
+enum KycError {
+    DatabaseError,
+    DeserializationError,
+}
+
+impl axum::response::IntoResponse for KycError {
+    fn into_response(self) -> axum::response::Response {
+        let body = match self {
+            KycError::DatabaseError => "Database error".to_string(),
+            KycError::DeserializationError => "Deserialization error".to_string(),
+        };
+
+        // its often easiest to implement `IntoResponse` by calling other implementations
+        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, body).into_response()
+    }
+}
+
 async fn get_account_kyc_status(
     Path(account_id): Path<near_account_id::AccountId>,
     State(state): State<std::sync::Arc<AppState>>,
-) -> anyhow::Result<KycResponse> {
+) -> Result<Json<KycResponse>, KycError> {
     let body: AirtableResponse = reqwest::Client::new()
         .get("https://api.airtable.com/v0/appjaTXAImNymlY6T/devhub_kyc")
         .query(&[
@@ -79,19 +96,19 @@ async fn get_account_kyc_status(
         )
         .send()
         .await
-        .context("Failed to fetch data from the database")?
+        .map_err(|_| KycError::DatabaseError)?
         .json()
         .await
-        .context("Failed to deserialized the database data")?;
+        .map_err(|_| KycError::DeserializationError)?;
 
-    Ok(KycResponse {
+    Ok(Json(KycResponse {
         account_id,
         kyc_status: body
             .records
             .first()
             .map(|record| record.fields.status)
             .unwrap_or(KycStatus::NotSubmitted),
-    })
+    }))
 }
 
 #[shuttle_runtime::main]
