@@ -1,10 +1,13 @@
 use anyhow::anyhow;
 use axum::{
     extract::{Path, State},
+    http::Method,
     routing::get,
     Json, Router,
 };
 use shuttle_secrets::SecretStore;
+use tower::ServiceBuilder;
+use tower_http::cors::{Any, CorsLayer};
 
 struct AppState {
     airtable_api_key: String,
@@ -123,6 +126,15 @@ async fn main(#[shuttle_secrets::Secrets] secret_store: SecretStore) -> shuttle_
 
     let router = Router::new()
         .route("/kyc/:account_id", get(get_account_kyc_status))
+        .layer(
+            ServiceBuilder::new().layer(
+                CorsLayer::new()
+                    // allow `GET` and `POST` when accessing the resource
+                    .allow_methods([Method::GET, Method::POST])
+                    // allow requests from any origin
+                    .allow_origin(Any),
+            ),
+        )
         .with_state(app_state);
 
     Ok(router.into())

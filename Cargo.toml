@@ -13,3 +13,5 @@ shuttle-axum = "0.41.0"
 shuttle-runtime = "0.41.0"
 shuttle-secrets = "0.41.0"
 tokio = "1.28.2"
+tower = "0.4.13"
+tower-http = { version = "0.5.2", features = ["cors"] }
