@@ -9,9 +9,9 @@ axum = "0.7.4"
 near-account-id = { version = "1.0.0", features = ["serde"] }
 reqwest = { version = "0.11.26", features = ["json"] }
 serde = { version = "1.0.197", features = ["derive"] }
-shuttle-axum = "0.41.0"
-shuttle-runtime = "0.41.0"
-shuttle-secrets = "0.41.0"
+shuttle-axum = "0.44.0"
+shuttle-runtime = "0.44.0"
+shuttle-secrets = "0.42.0"
 tokio = "1.28.2"
 tower = "0.4.13"
 tower-http = { version = "0.5.2", features = ["cors"] }
