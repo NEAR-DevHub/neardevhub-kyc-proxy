@@ -5,7 +5,7 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use shuttle_secrets::SecretStore;
+use shuttle_runtime::SecretStore;
 use tower::ServiceBuilder;
 use tower_http::cors::{Any, CorsLayer};
 
@@ -118,7 +118,7 @@ async fn get_account_kyc_status(
 }
 
 #[shuttle_runtime::main]
-async fn main(#[shuttle_secrets::Secrets] secret_store: SecretStore) -> shuttle_axum::ShuttleAxum {
+async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> shuttle_axum::ShuttleAxum {
     let airtable_api_key = if let Some(airtable_api_key) = secret_store.get("AIRTABLE_API_KEY") {
         airtable_api_key
     } else {
