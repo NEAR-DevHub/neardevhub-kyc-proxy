@@ -57,8 +57,11 @@ struct KycResponse {
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 enum KycStatus {
     NotSubmitted,
+    #[serde(alias = "pending")]
     Pending,
+    #[serde(alias = "rejected")]
     Rejected,
+    #[serde(alias = "approved")]
     Approved,
 }
 
