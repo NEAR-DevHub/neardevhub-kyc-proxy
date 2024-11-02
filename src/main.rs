@@ -23,7 +23,8 @@ struct AppState {
 ///         "approval_date": "2023-06-15T22:22:22.776Z",
 ///         "verification_type": "KYC",
 ///         "near_wallet": "frol.near",
-///         "status": "Approved"
+///         "status": "pending" / "rejected" / "approved",
+///         "approval_standing": "" / "active" / "expired",
 ///     }
 /// }]}
 /// ```
@@ -46,6 +47,7 @@ struct AirtableFields {
     // verification_type: String,
     // near_wallet: String,
     status: KycStatus,
+    approval_standing: KycApprovalStanding,
 }
 
 #[derive(serde::Serialize)]
@@ -63,6 +65,16 @@ enum KycStatus {
     Rejected,
     #[serde(alias = "approved")]
     Approved,
+    Expired,
+}
+
+#[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum KycApprovalStanding {
+    #[serde(alias = "")]
+    Inactive,
+    Active,
+    Expired,
 }
 
 enum KycError {
@@ -89,7 +101,7 @@ async fn get_account_kyc_status(
     let body: AirtableResponse = reqwest::Client::new()
         .get("https://api.airtable.com/v0/appjaTXAImNymlY6T/devhub_kyc")
         .query(&[
-            ("maxRecords", "3"),
+            ("maxRecords", "5"),
             ("view", "Grid view"),
             (
                 "filterByFormula",
@@ -109,11 +121,25 @@ async fn get_account_kyc_status(
 
     Ok(Json(KycResponse {
         account_id,
-        kyc_status: body
+        kyc_status: if let Some(active_record) = body
             .records
-            .first()
-            .map(|record| record.fields.status)
-            .unwrap_or(KycStatus::NotSubmitted),
+            .iter()
+            .filter(|record| matches!(record.fields.approval_standing, KycApprovalStanding::Active))
+            .next()
+        {
+            active_record.fields.status
+        } else {
+            body.records
+                .first()
+                .map(|record| {
+                    if let KycApprovalStanding::Expired = record.fields.approval_standing {
+                        KycStatus::Expired
+                    } else {
+                        record.fields.status
+                    }
+                })
+                .unwrap_or(KycStatus::NotSubmitted)
+        },
     }))
 }
 
