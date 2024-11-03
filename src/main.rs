@@ -47,6 +47,7 @@ struct AirtableFields {
     // verification_type: String,
     // near_wallet: String,
     status: KycStatus,
+    #[serde(default = "approval_standing_inactive")]
     approval_standing: KycApprovalStanding,
 }
 
@@ -57,13 +58,14 @@ struct KycResponse {
 }
 
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 enum KycStatus {
     NotSubmitted,
-    #[serde(alias = "pending")]
+    #[serde(alias = "pending", alias = "Pending")]
     Pending,
-    #[serde(alias = "rejected")]
+    #[serde(alias = "rejected", alias = "Rejected")]
     Rejected,
-    #[serde(alias = "approved")]
+    #[serde(alias = "approved", alias = "Approved")]
     Approved,
     Expired,
 }
@@ -71,10 +73,13 @@ enum KycStatus {
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum KycApprovalStanding {
-    #[serde(alias = "")]
-    Inactive,
     Active,
+    #[serde(alias = "")]
     Expired,
+}
+
+fn approval_standing_inactive() -> KycApprovalStanding {
+    KycApprovalStanding::Expired
 }
 
 enum KycError {
@@ -117,7 +122,7 @@ async fn get_account_kyc_status(
         .map_err(|_| KycError::DatabaseError)?
         .json()
         .await
-        .map_err(|_| KycError::DeserializationError)?;
+        .map_err(|_err| { dbg!(_err); KycError::DeserializationError })?;
 
     Ok(Json(KycResponse {
         account_id,
