@@ -110,7 +110,7 @@ async fn get_account_kyc_status(
             ("view", "Grid view"),
             (
                 "filterByFormula",
-                &format!("{{near_wallet}}='{account_id}'"),
+                &format!("REGEX_MATCH({{near_wallet}}, '(^|,){account_id}(,|$)')"),
             ),
         ])
         .header(
@@ -122,7 +122,10 @@ async fn get_account_kyc_status(
         .map_err(|_| KycError::DatabaseError)?
         .json()
         .await
-        .map_err(|_err| { dbg!(_err); KycError::DeserializationError })?;
+        .map_err(|_err| {
+            dbg!(_err);
+            KycError::DeserializationError
+        })?;
 
     Ok(Json(KycResponse {
         account_id,
