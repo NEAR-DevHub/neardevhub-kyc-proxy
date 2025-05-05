@@ -141,7 +141,12 @@ async fn get_account_kyc_status(
         kyc_status: if let Some(active_record) = body
             .records
             .iter()
-            .filter(|record| matches!(record.fields.approval_standing, KycApprovalStanding::Verified))
+            .filter(|record| {
+                matches!(
+                    record.fields.approval_standing,
+                    KycApprovalStanding::Verified
+                )
+            })
             .next()
         {
             KycStatus::from(active_record.fields.approval_standing)
