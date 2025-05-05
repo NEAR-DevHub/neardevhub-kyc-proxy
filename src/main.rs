@@ -50,9 +50,8 @@ struct AirtableFields {
 #[derive(serde::Serialize)]
 struct KycResponse {
     account_id: near_account_id::AccountId,
-    kyc_status: KycApprovalStanding,
+    kyc_status: KycStatus,
 }
-
 
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -62,6 +61,28 @@ enum KycApprovalStanding {
     Pending,
     Expired,
     NotSubmitted,
+}
+
+impl From<KycApprovalStanding> for KycStatus {
+    fn from(approval_standing: KycApprovalStanding) -> Self {
+        match approval_standing {
+            KycApprovalStanding::Verified => KycStatus::Approved,
+            KycApprovalStanding::Rejected => KycStatus::Rejected,
+            KycApprovalStanding::Pending => KycStatus::Pending,
+            KycApprovalStanding::Expired => KycStatus::Expired,
+            KycApprovalStanding::NotSubmitted => KycStatus::NotSubmitted,
+        }
+    }
+}
+
+#[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+enum KycStatus {
+    NotSubmitted,
+    Pending,
+    Rejected,
+    Approved,
+    Expired,
 }
 
 fn approval_standing_inactive() -> KycApprovalStanding {
@@ -123,14 +144,12 @@ async fn get_account_kyc_status(
             .filter(|record| matches!(record.fields.approval_standing, KycApprovalStanding::Verified))
             .next()
         {
-            active_record.fields.approval_standing
+            KycStatus::from(active_record.fields.approval_standing)
         } else {
             body.records
                 .first()
-                .map(|record| {
-                    record.fields.approval_standing
-                })
-                .unwrap_or(KycApprovalStanding::NotSubmitted)
+                .map(|record| KycStatus::from(record.fields.approval_standing))
+                .unwrap_or(KycStatus::NotSubmitted)
         },
     }))
 }
