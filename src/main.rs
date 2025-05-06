@@ -16,17 +16,28 @@ struct AppState {
 /// Example response from Airtable API:
 ///
 /// ```json
-/// {"records": [{
-///     "id": "recF5mFCZgsvJtGeh",
-///     "createdTime": "2023-10-26T09:49:34.000Z",
-///     "fields": {
-///         "approval_date": "2023-06-15T22:22:22.776Z",
-///         "verification_type": "KYC",
-///         "near_wallet": "frol.near",
-///         "status": "pending" / "rejected" / "approved",
-///         "approval_standing": "" / "active" / "expired",
-///     }
-/// }]}
+/// {
+///     "records": [
+///         {
+///             "id": "recgyIIfWh3f6MPfo",
+///             "createdTime": "2025-04-21T01:50:06.000Z",
+///             "fields": {
+///                 "Wallet Address [Currency]": "[NEAR] petersalomonsen.near",
+///                 "Wallet Status": "Verified",
+///                 "Contact": [
+///                     "recw0617NXLJMOUjc"
+///                ],
+///                 "Wallet Address": "petersalomonsen.near",
+///                 "Chain": "NEAR",
+///                 "Verification Date": "11/28/2024 1:10am",
+///                 "KYC Approval Standing (from Contact)": [
+///                     "Approved"
+///                 ],
+///                 "Final Status": "Verified"
+///             }
+///         }
+///     ]
+/// }
 /// ```
 #[derive(serde::Deserialize)]
 struct AirtableResponse {
@@ -83,10 +94,6 @@ enum KycStatus {
     Rejected,
     Approved,
     Expired,
-}
-
-fn approval_standing_inactive() -> KycApprovalStanding {
-    KycApprovalStanding::Expired
 }
 
 enum KycError {
