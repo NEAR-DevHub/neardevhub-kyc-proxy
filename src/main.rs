@@ -71,6 +71,7 @@ enum KycApprovalStanding {
     Rejected,
     Pending,
     Expired,
+    #[serde(rename = "Not Submitted")]
     NotSubmitted,
 }
 
