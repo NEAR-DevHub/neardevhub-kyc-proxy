@@ -23,7 +23,7 @@ struct AppState {
 ///             "createdTime": "2025-04-21T01:50:06.000Z",
 ///             "fields": {
 ///                 "Wallet Address [Currency]": "[NEAR] petersalomonsen.near",
-///                 "Wallet Status": "Verified",
+///                 "Owner Verification Status": "Verified",
 ///                 "Contact": [
 ///                     "recw0617NXLJMOUjc"
 ///                ],
@@ -54,7 +54,7 @@ struct AirtableRecord {
 
 #[derive(serde::Deserialize)]
 struct AirtableFields {
-    #[serde(rename = "Final Status")]
+    #[serde(rename = "Owner Verification Status")]
     approval_standing: KycApprovalStanding,
 }
 
@@ -118,7 +118,7 @@ async fn get_account_kyc_status(
     Path(account_id): Path<near_account_id::AccountId>,
     State(state): State<std::sync::Arc<AppState>>,
 ) -> Result<Json<KycResponse>, KycError> {
-    let response = reqwest::Client::new()
+    let body: AirtableResponse = reqwest::Client::new()
         .get("https://api.airtable.com/v0/appc0ZVhbKj8hMLvH/tblIxT2t2gHoZMucn")
         .query(&[
             ("maxRecords", "5"),
@@ -134,15 +134,13 @@ async fn get_account_kyc_status(
         )
         .send()
         .await
-        .map_err(|_| KycError::DatabaseError)?;
-
-    let raw_json = response.text().await.map_err(|_| KycError::DatabaseError)?;
-
-    let body: AirtableResponse = serde_json::from_str(&raw_json).map_err(|_err| {
-        println!("Deserialization error: {:?}", _err);
-        println!("Raw JSON response: {}", raw_json);
-        KycError::DeserializationError
-    })?;
+        .map_err(|_| KycError::DatabaseError)?
+        .json()
+        .await
+        .map_err(|_err| {
+            dbg!(_err);
+            KycError::DeserializationError
+        })?;
 
     Ok(Json(KycResponse {
         account_id,
