@@ -176,7 +176,7 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> shuttle_
     let app_state = std::sync::Arc::new(AppState { airtable_api_key });
 
     let router = Router::new()
-        .route("/kyc/:account_id", get(get_account_kyc_status))
+        .route("/kyc/{account_id}", get(get_account_kyc_status))
         .layer(
             ServiceBuilder::new().layer(
                 CorsLayer::new()
