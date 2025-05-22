@@ -1076,7 +1076,6 @@ dependencies = [
  "near-account-id",
  "reqwest 0.12.9",
  "serde",
- "serde_json",
  "shuttle-axum",
  "shuttle-runtime",
  "tokio",
