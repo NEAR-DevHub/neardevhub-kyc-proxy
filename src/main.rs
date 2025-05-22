@@ -16,17 +16,28 @@ struct AppState {
 /// Example response from Airtable API:
 ///
 /// ```json
-/// {"records": [{
-///     "id": "recF5mFCZgsvJtGeh",
-///     "createdTime": "2023-10-26T09:49:34.000Z",
-///     "fields": {
-///         "approval_date": "2023-06-15T22:22:22.776Z",
-///         "verification_type": "KYC",
-///         "near_wallet": "frol.near",
-///         "status": "pending" / "rejected" / "approved",
-///         "approval_standing": "" / "active" / "expired",
-///     }
-/// }]}
+/// {
+///     "records": [
+///         {
+///             "id": "recgyIIfWh3f6MPfo",
+///             "createdTime": "2025-04-21T01:50:06.000Z",
+///             "fields": {
+///                 "Wallet Address [Currency]": "[NEAR] petersalomonsen.near",
+///                 "Wallet Status": "Verified",
+///                 "Contact": [
+///                     "recw0617NXLJMOUjc"
+///                ],
+///                 "Wallet Address": "petersalomonsen.near",
+///                 "Chain": "NEAR",
+///                 "Verification Date": "11/28/2024 1:10am",
+///                 "KYC Approval Standing (from Contact)": [
+///                     "Approved"
+///                 ],
+///                 "Final Status": "Verified"
+///             }
+///         }
+///     ]
+/// }
 /// ```
 #[derive(serde::Deserialize)]
 struct AirtableResponse {
@@ -43,11 +54,7 @@ struct AirtableRecord {
 
 #[derive(serde::Deserialize)]
 struct AirtableFields {
-    // approval_date: String,
-    // verification_type: String,
-    // near_wallet: String,
-    status: KycStatus,
-    #[serde(default = "approval_standing_inactive")]
+    #[serde(rename = "Final Status")]
     approval_standing: KycApprovalStanding,
 }
 
@@ -58,28 +65,36 @@ struct KycResponse {
 }
 
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum KycStatus {
-    NotSubmitted,
-    #[serde(alias = "pending", alias = "Pending")]
-    Pending,
-    #[serde(alias = "rejected", alias = "Rejected")]
+#[serde(rename_all = "PascalCase")]
+enum KycApprovalStanding {
+    Verified,
     Rejected,
-    #[serde(alias = "approved", alias = "Approved")]
-    Approved,
+    Pending,
     Expired,
+    #[serde(rename = "Not Submitted")]
+    NotSubmitted,
+}
+
+impl From<KycApprovalStanding> for KycStatus {
+    fn from(approval_standing: KycApprovalStanding) -> Self {
+        match approval_standing {
+            KycApprovalStanding::Verified => KycStatus::Approved,
+            KycApprovalStanding::Rejected => KycStatus::Rejected,
+            KycApprovalStanding::Pending => KycStatus::Pending,
+            KycApprovalStanding::Expired => KycStatus::Expired,
+            KycApprovalStanding::NotSubmitted => KycStatus::NotSubmitted,
+        }
+    }
 }
 
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-enum KycApprovalStanding {
-    Active,
-    #[serde(alias = "")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+enum KycStatus {
+    NotSubmitted,
+    Pending,
+    Rejected,
+    Approved,
     Expired,
-}
-
-fn approval_standing_inactive() -> KycApprovalStanding {
-    KycApprovalStanding::Expired
 }
 
 enum KycError {
@@ -103,14 +118,14 @@ async fn get_account_kyc_status(
     Path(account_id): Path<near_account_id::AccountId>,
     State(state): State<std::sync::Arc<AppState>>,
 ) -> Result<Json<KycResponse>, KycError> {
-    let body: AirtableResponse = reqwest::Client::new()
-        .get("https://api.airtable.com/v0/appjaTXAImNymlY6T/devhub_kyc")
+    let response = reqwest::Client::new()
+        .get("https://api.airtable.com/v0/appc0ZVhbKj8hMLvH/tblIxT2t2gHoZMucn")
         .query(&[
             ("maxRecords", "5"),
             ("view", "Grid view"),
             (
                 "filterByFormula",
-                &format!("REGEX_MATCH({{near_wallet}}, '(^|,){account_id}(,|$)')"),
+                &format!("REGEX_MATCH({{Wallet Address}}, '(^|,){account_id}(,|$)')"),
             ),
         ])
         .header(
@@ -119,33 +134,34 @@ async fn get_account_kyc_status(
         )
         .send()
         .await
-        .map_err(|_| KycError::DatabaseError)?
-        .json()
-        .await
-        .map_err(|_err| {
-            dbg!(_err);
-            KycError::DeserializationError
-        })?;
+        .map_err(|_| KycError::DatabaseError)?;
+
+    let raw_json = response.text().await.map_err(|_| KycError::DatabaseError)?;
+
+    let body: AirtableResponse = serde_json::from_str(&raw_json).map_err(|_err| {
+        println!("Deserialization error: {:?}", _err);
+        println!("Raw JSON response: {}", raw_json);
+        KycError::DeserializationError
+    })?;
 
     Ok(Json(KycResponse {
         account_id,
         kyc_status: if let Some(active_record) = body
             .records
             .iter()
-            .filter(|record| matches!(record.fields.approval_standing, KycApprovalStanding::Active))
+            .filter(|record| {
+                matches!(
+                    record.fields.approval_standing,
+                    KycApprovalStanding::Verified
+                )
+            })
             .next()
         {
-            active_record.fields.status
+            KycStatus::from(active_record.fields.approval_standing)
         } else {
             body.records
                 .first()
-                .map(|record| {
-                    if let KycApprovalStanding::Expired = record.fields.approval_standing {
-                        KycStatus::Expired
-                    } else {
-                        record.fields.status
-                    }
-                })
+                .map(|record| KycStatus::from(record.fields.approval_standing))
                 .unwrap_or(KycStatus::NotSubmitted)
         },
     }))
