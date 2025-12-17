@@ -5,7 +5,6 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use shuttle_runtime::SecretStore;
 use tower::ServiceBuilder;
 use tower_http::cors::{Any, CorsLayer};
 
@@ -165,17 +164,17 @@ async fn get_account_kyc_status(
     }))
 }
 
-#[shuttle_runtime::main]
-async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> shuttle_axum::ShuttleAxum {
-    let airtable_api_key = if let Some(airtable_api_key) = secret_store.get("AIRTABLE_API_KEY") {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let airtable_api_key = if let Ok(airtable_api_key) = std::env::var("AIRTABLE_API_KEY") {
         airtable_api_key
     } else {
-        return Err(anyhow!("AIRTABLE_API_KEY was not found").into());
+        return Err(anyhow!("AIRTABLE_API_KEY was not found"));
     };
 
     let app_state = std::sync::Arc::new(AppState { airtable_api_key });
 
-    let router = Router::new()
+    let app = Router::new()
         .route("/kyc/{account_id}", get(get_account_kyc_status))
         .layer(
             ServiceBuilder::new().layer(
@@ -188,5 +187,8 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> shuttle_
         )
         .with_state(app_state);
 
-    Ok(router.into())
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
+    axum::serve(listener, app).await?;
+
+    Ok(())
 }

@@ -1,12 +1,14 @@
 # NEAR DevHub KYC Proxy Service
 
-## Deploy
-
-Install [`cargo-shuttle`](https://github.com/shuttle-hq/shuttle?tab=readme-ov-file#getting-started), create `Secret.toml` file with `AIRTABLE_API_TOKEN = ""` configured, and deploy with the following command:
+## Run
 
 ```sh
-$ cargo shuttle deploy
+$ cargo run
 ```
+
+## Deploy
+
+This service is automatically deployed to Render.
 
 ## Get sample Airtable data
 

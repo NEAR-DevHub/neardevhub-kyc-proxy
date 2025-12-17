@@ -6,11 +6,9 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.81"
 axum = "0.8.4"
-near-account-id = { version = "1.0.0", features = ["serde"] }
+near-account-id = { version = "2.0.0", features = ["serde"] }
 reqwest = { version = "0.12.9", features = ["json"] }
 serde = { version = "1.0.197", features = ["derive"] }
-shuttle-axum = "0.55.0"
-shuttle-runtime = "0.55.0"
-tokio = "1.28.2"
+tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread"] }
 tower = "0.5.1"
 tower-http = { version = "0.6.1", features = ["cors"] }

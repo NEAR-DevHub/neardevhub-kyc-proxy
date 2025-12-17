@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: neardevhub-kyc-proxy
+    runtime: rust
+    region: frankfurt
+    plan: free
+    repo: https://github.com/NEAR-DevHub/neardevhub-kyc-proxy
+    branch: main
+    domains:
+      - neardevhub-kyc-proxy.nearn.io
+    envVars:
+      - key: AIRTABLE_API_KEY
+        sync: false
+    autoDeploy: true
