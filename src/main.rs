@@ -187,7 +187,13 @@ async fn main() -> anyhow::Result<()> {
         )
         .with_state(app_state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
+    let listener = tokio::net::TcpListener::bind((
+        "0.0.0.0",
+        std::env::var("PORT")
+            .map(|port| port.parse().unwrap())
+            .unwrap_or(3000),
+    ))
+    .await?;
     axum::serve(listener, app).await?;
 
     Ok(())
